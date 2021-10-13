@@ -1,19 +1,20 @@
+
 import cv2
 import rospy
 import numpy as np
-from cv_bridge import CvBridge
-from sensor_msgs.msg import Compressedimage
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import CompressedImage
 
 
 class ImageAnalysis:
     def __init__(self, img_size=(480, 640), min_blob=50):
-        self.image = np.empty(img_size, up.unit8)
+        self.image = np.empty(img_size, np.uint8)
         self.min_blob = min_blob
         self.sub = rospy.Subscriber("rpi_image", CompressedImage, self.analyze_image)
 
     def imfill(self, bw_image):
         h, w = bw_image.shape[:2]
-        mask = np.zeros((h + 2, w + 2), np.unit8)
+        mask = np.zeros((h + 2, w + 2), np.uint8)
         im_filled = bw_image.copy()
         cv2.floodFill(im_filled, mask, (0, 0), 255)
         im_filled_inv = cv2.bitwise_not(im_filled)
@@ -21,10 +22,10 @@ class ImageAnalysis:
 
     def refine_mask(self, raw_mask):
         filled_mask = self.imfill(raw_mask)
-        kernel = cv2.getStructingElement(shape=cv2.MORPH_ELLIPSE, ksize=(self.min_blob, slef.min_blob))
-        opened_mask = cv2.morphologyEx(filles_mask, cv2.MORPH_OPEN, kernel)
+        kernel = cv2.getStructingElement(shape=cv2.MORPH_ELLIPSE, ksize=(self.min_blob, self.min_blob))
+        opened_mask = cv2.morphologyEx(filled_mask, cv2.MORPH_OPEN, kernel)
         contours, _ = cv2.findContours(opened_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        self.mask = np.zeros(raw_mask.shape, np.unit8)
+        self.mask = np.zeros(raw_mask.shape, np.uint8)
         if len(contours) != 0:
             largest_contour = max(contours, key=cv2.contourArea)
             cv2.drawContours(self.mask, [largest_contour], -1, 255, cv2.FILLED)
@@ -67,3 +68,8 @@ class ImageAnalysis:
         if key == 27 or key == ord('q'):
             cv2.destoryALLWindows()
         rospy.loginfo("image was analyze")
+
+if __name__ == "__main__":
+    rospy.init_node("image_analysis")
+    ImageAnalysis()
+    rospy.spin()
